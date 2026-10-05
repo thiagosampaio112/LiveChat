@@ -10,13 +10,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// 1. O Cérebro: Modelo de conversação
-const chatModel = genAI.getGenerativeModel({ 
-    model: 'gemini-2.5-flash',
-    systemInstruction: "Você é um professor de inglês nativo. Você está em uma chamada de voz com o aluno. Suas respostas devem ser curtas, diretas e encorajadoras, focadas em conversação real. Não use emojis, asteriscos ou formatações textuais, pois sua resposta será lida por um sintetizador de voz."
-});
-
-// 2. A Voz: Modelo TTS (Text-to-Speech)
+// A Voz: Modelo TTS (Text-to-Speech)
 const ttsModel = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash-preview-tts',
     generationConfig: { 
@@ -25,11 +19,19 @@ const ttsModel = genAI.getGenerativeModel({
     }
 });
 
-// Rota REST para processar a fala do aluno e devolver o áudio
+// Rota REST para processar a fala do aluno e devolver o audio
 app.post('/api/speak', async (req, res) => {
     try {
-        const { text, history } = req.body;
-        console.log("Aluno:", text);
+        const { text, history, prompt } = req.body;
+        console.log("Usuario:", text);
+
+        // Instancia o cerebro dinamicamente para usar o prompt personalizado
+        const customPrompt = prompt || "Voce e um assistente amigavel. Suas respostas devem ser curtas, diretas e encorajadoras. Nao use emojis ou formatacoes textuais, pois sua resposta sera lida em voz alta.";
+        
+        const chatModel = genAI.getGenerativeModel({ 
+            model: 'gemini-2.5-flash',
+            systemInstruction: customPrompt
+        });
 
         const chatHistory = history || [];
         chatHistory.push({ role: "user", parts: [{ text }] });
@@ -37,11 +39,11 @@ app.post('/api/speak', async (req, res) => {
         // PASSO 1: Gerar a resposta em texto
         const chatResult = await chatModel.generateContent({ contents: chatHistory });
         const aiText = chatResult.response.text();
-        console.log("Professor:", aiText);
+        console.log("IA:", aiText);
 
         chatHistory.push({ role: "model", parts: [{ text: aiText }] });
 
-        // PASSO 2: Converter o texto gerado para áudio
+        // PASSO 2: Converter o texto gerado para audio
         const ttsResult = await ttsModel.generateContent("Read this text aloud exactly as it is: " + aiText);
         
         const candidate = ttsResult.response.candidates[0];
@@ -56,8 +58,7 @@ app.post('/api/speak', async (req, res) => {
         }
 
         if (audioBase64) {
-            // O Gemini TTS retorna RAW PCM (geralmente 24000Hz, 1 canal, 16-bit little-endian)
-            // Precisamos construir um cabeçalho WAV padrão para o navegador entender o formato
+            // Adicionando cabecalho WAV ao PCM
             const pcmBuffer = Buffer.from(audioBase64, 'base64');
             const sampleRate = 24000;
             const numChannels = 1;
@@ -82,7 +83,7 @@ app.post('/api/speak', async (req, res) => {
             
             res.json({ audio: wavBase64, updatedHistory: chatHistory });
         } else {
-            res.status(500).json({ error: "Falha ao gerar áudio" });
+            res.status(500).json({ error: "Falha ao gerar audio" });
         }
 
     } catch (e) {

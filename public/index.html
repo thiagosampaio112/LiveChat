@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiveChat - Tutor de Ingles</title>
+    <title>LiveChat - Praktika IA</title>
     <style>
         body {
             background-color: #0f172a;
@@ -16,31 +16,64 @@
             height: 100vh;
             margin: 0;
             overflow: hidden;
+            position: relative;
         }
         
+        /* Avatar UI */
         #avatar-container {
+            position: relative;
             width: 200px;
             height: 200px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 80px;
-            box-shadow: 0 0 30px rgba(139, 92, 246, 0.5);
-            transition: transform 0.1s ease;
             margin-bottom: 50px;
         }
 
-        .speaking {
-            animation: pulse 1s infinite alternate;
+        #avatar-img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            z-index: 10;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease;
         }
 
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 30px rgba(139, 92, 246, 0.5); }
-            100% { transform: scale(1.1); box-shadow: 0 0 60px rgba(139, 92, 246, 0.9); }
+        /* Hologram Rings */
+        .ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid #3b82f6;
+            opacity: 0;
+            z-index: 1;
         }
 
+        .speaking .ring:nth-child(2) {
+            animation: ripple 1.5s linear infinite;
+        }
+        .speaking .ring:nth-child(3) {
+            animation: ripple 1.5s linear infinite;
+            animation-delay: 0.5s;
+        }
+        .speaking .ring:nth-child(4) {
+            animation: ripple 1.5s linear infinite;
+            animation-delay: 1.0s;
+        }
+        .speaking #avatar-img {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
+        }
+
+        @keyframes ripple {
+            0% { transform: scale(1); opacity: 0.8; border-color: #3b82f6; }
+            100% { transform: scale(1.8); opacity: 0; border-color: #8b5cf6; }
+        }
+
+        /* Controls */
         #controls {
             display: flex;
             gap: 20px;
@@ -56,30 +89,95 @@
             transition: 0.3s;
         }
 
-        #connect-btn {
-            background-color: #22c55e;
-            color: white;
-        }
-
+        #connect-btn { background-color: #22c55e; color: white; }
         #connect-btn:hover { background-color: #16a34a; }
 
-        #disconnect-btn {
-            background-color: #ef4444;
-            color: white;
-        }
-
+        #disconnect-btn { background-color: #ef4444; color: white; }
         #disconnect-btn:hover { background-color: #dc2626; }
         
         #status {
             margin-top: 30px;
             color: #94a3b8;
         }
+
+        /* Header Bar */
+        #header-bar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background-color: #1e293b;
+            color: white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            padding: 0;
+            border: 1px solid #334155;
+        }
+        .icon-btn:hover { background-color: #334155; }
+
+        /* Modal */
+        #settings-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .modal-content h2 { margin-top: 0; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #94a3b8; }
+        
+        textarea, select, input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: white;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        #close-settings-btn {
+            background-color: #3b82f6;
+            width: 100%;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
 
+    <div id="header-bar">
+        <button id="clear-history-btn" class="icon-btn" title="Nova Conversa">🗑️</button>
+        <button id="open-settings-btn" class="icon-btn" title="Configuracoes">⚙️</button>
+    </div>
+
     <div id="avatar-container">
-        🗣️
+        <div class="ring"></div>
+        <div class="ring"></div>
+        <div class="ring"></div>
+        <img id="avatar-img" src="/avatar.jpg" alt="AI Avatar">
     </div>
 
     <div id="controls">
@@ -90,6 +188,35 @@
     <div id="status">Pronto para conectar...</div>
     
     <audio id="ai-audio" style="display: none;"></audio>
+
+    <!-- Modal de Configuracoes -->
+    <div id="settings-modal">
+        <div class="modal-content">
+            <h2>Configuracoes</h2>
+            
+            <div class="form-group">
+                <label>Personalidade da IA (Prompt)</label>
+                <textarea id="ai-prompt" rows="4">Voce e uma professora de ingles nativa. Suas respostas devem ser curtas, diretas e encorajadoras. Foque em conversacao real e puxe assunto.</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Idioma que VOCE vai falar</label>
+                <select id="user-lang">
+                    <option value="en-US">Ingles (en-US)</option>
+                    <option value="pt-BR">Portugues (pt-BR)</option>
+                    <option value="es-ES">Espanhol (es-ES)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Velocidade da Voz da IA</label>
+                <input type="range" id="voice-speed" min="0.5" max="1.5" step="0.1" value="1.0">
+                <div style="text-align: center; color: #94a3b8; font-size: 14px;" id="speed-label">1.0x</div>
+            </div>
+
+            <button id="close-settings-btn">Salvar e Fechar</button>
+        </div>
+    </div>
 
     <script src="/app.js"></script>
 </body>
