@@ -2,19 +2,19 @@ const connectBtn = document.getElementById('connect-btn');
 const disconnectBtn = document.getElementById('disconnect-btn');
 const statusDiv = document.getElementById('status');
 const avatar = document.getElementById('avatar-container');
+const aiAudio = document.getElementById('ai-audio');
 
 let recognition = null;
-let audioContext = null;
 let chatHistory = [];
 let isConnected = false;
 
 connectBtn.addEventListener('click', () => {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
-    }
+    // Hack to unlock audio playback on mobile browsers:
+    // Play a tiny silent audio to unlock the HTML5 Audio tag.
+    aiAudio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+    aiAudio.play().then(() => {
+        aiAudio.pause();
+    }).catch(e => console.log("Silent audio unlock failed:", e));
 
     isConnected = true;
     statusDiv.innerText = "Conectado! Pode falar em ingles.";
@@ -50,7 +50,7 @@ function startListening() {
                     const data = await response.json();
                     
                     if (data.audio) {
-                        statusDiv.innerText = "Iniciando Audio...";
+                        statusDiv.innerText = "Iniciando Audio HTML5...";
                         chatHistory = data.updatedHistory;
                         playAudio(data.audio);
                     } else if (data.error) {
@@ -81,49 +81,38 @@ function startListening() {
     }
 }
 
-let nextPlayTime = 0;
-
 function playAudio(base64Data) {
     try {
-        const binaryStr = window.atob(base64Data);
-        const len = binaryStr.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-            bytes[i] = binaryStr.charCodeAt(i);
-        }
+        aiAudio.src = "data:audio/wav;base64," + base64Data;
         
-        audioContext.decodeAudioData(bytes.buffer, (audioBuffer) => {
-            const source = audioContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(audioContext.destination);
-            
-            const currentTime = audioContext.currentTime;
-            if (currentTime < nextPlayTime) {
-                source.start(nextPlayTime);
-                nextPlayTime += audioBuffer.duration;
-            } else {
-                source.start(currentTime);
-                nextPlayTime = currentTime + audioBuffer.duration;
-            }
-            
+        aiAudio.onplay = () => {
             avatar.classList.add('speaking');
             statusDiv.innerText = "Professor falando...";
-            
-            source.onended = () => {
-                if (audioContext.currentTime >= nextPlayTime) {
-                    avatar.classList.remove('speaking');
-                    statusDiv.innerText = "Sua vez de falar...";
-                    if (isConnected && recognition) {
-                        try { recognition.start(); } catch(e){}
-                    }
-                }
-            };
-        }, (e) => {
-            statusDiv.innerText = "Erro de decode do Audio!";
+        };
+        
+        aiAudio.onended = () => {
+            avatar.classList.remove('speaking');
+            statusDiv.innerText = "Sua vez de falar...";
+            if (isConnected && recognition) {
+                try { recognition.start(); } catch(e){}
+            }
+        };
+
+        aiAudio.onerror = (e) => {
+            console.error("Audio error", e);
+            statusDiv.innerText = "Erro ao tocar Audio HTML5!";
             if (isConnected && recognition) recognition.start();
-        });
+        };
+
+        const playPromise = aiAudio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                statusDiv.innerText = "Erro de AutoPlay do Navegador!";
+                if (isConnected && recognition) recognition.start();
+            });
+        }
     } catch(err) {
-        statusDiv.innerText = "Erro no buffer de Audio!";
+        statusDiv.innerText = "Erro na Tag Audio!";
         if (isConnected && recognition) recognition.start();
     }
 }
@@ -134,6 +123,7 @@ disconnectBtn.addEventListener('click', () => {
         recognition.onend = null;
         recognition.stop();
     }
+    aiAudio.pause();
     statusDiv.innerText = "Desconectado.";
     connectBtn.style.display = 'block';
     disconnectBtn.style.display = 'none';
