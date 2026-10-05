@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveChat - Tutor de Inglês</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        #avatar-container {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.5);
+            transition: transform 0.1s ease;
+            margin-bottom: 50px;
+        }
+
+        .speaking {
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 30px rgba(139, 92, 246, 0.5); }
+            100% { transform: scale(1.1); box-shadow: 0 0 60px rgba(139, 92, 246, 0.9); }
+        }
+
+        #controls {
+            display: flex;
+            gap: 20px;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 30px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        #connect-btn {
+            background-color: #22c55e;
+            color: white;
+        }
+
+        #connect-btn:hover { background-color: #16a34a; }
+
+        #disconnect-btn {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        #disconnect-btn:hover { background-color: #dc2626; }
+        
+        #status {
+            margin-top: 30px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="avatar-container">
+        🗣️
+    </div>
+
+    <div id="controls">
+        <button id="connect-btn">Ligar (Connect)</button>
+        <button id="disconnect-btn" style="display: none;">Desligar (Disconnect)</button>
+    </div>
+    
+    <div id="status">Pronto para conectar...</div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
