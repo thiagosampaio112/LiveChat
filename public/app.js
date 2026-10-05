@@ -9,7 +9,6 @@ let chatHistory = [];
 let isConnected = false;
 
 connectBtn.addEventListener('click', () => {
-    // Inicializa o AudioContext no momento do clique (Regra de AutoPlay dos navegadores)
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
@@ -18,7 +17,7 @@ connectBtn.addEventListener('click', () => {
     }
 
     isConnected = true;
-    statusDiv.innerText = "Conectado! Pode falar em inglês.";
+    statusDiv.innerText = "Conectado! Pode falar em ingles.";
     connectBtn.style.display = 'none';
     disconnectBtn.style.display = 'block';
     
@@ -35,11 +34,9 @@ function startListening() {
 
         recognition.onresult = async (event) => {
             const transcript = event.results[event.results.length - 1][0].transcript;
-            console.log("Você disse:", transcript);
             
             if (isConnected) {
-                statusDiv.innerText = "O professor está pensando...";
-                // Pausa o microfone enquanto envia e espera a resposta
+                statusDiv.innerText = "Enviando... (" + transcript.substring(0, 10) + ")";
                 recognition.stop();
                 
                 try {
@@ -49,18 +46,22 @@ function startListening() {
                         body: JSON.stringify({ text: transcript, history: chatHistory })
                     });
                     
+                    statusDiv.innerText = "Decodificando Resposta...";
                     const data = await response.json();
                     
                     if (data.audio) {
+                        statusDiv.innerText = "Iniciando Audio...";
                         chatHistory = data.updatedHistory;
                         playAudio(data.audio);
+                    } else if (data.error) {
+                        statusDiv.innerText = "Erro do Servidor: " + data.error;
+                        if (isConnected) recognition.start();
                     } else {
-                        statusDiv.innerText = "Erro na resposta.";
+                        statusDiv.innerText = "Falha Desconhecida";
                         if (isConnected) recognition.start();
                     }
                 } catch (e) {
-                    console.error("Erro ao falar com a API", e);
-                    statusDiv.innerText = "Erro de conexão.";
+                    statusDiv.innerText = "Erro Fetch: " + e.message;
                     if (isConnected) recognition.start();
                 }
             }
@@ -69,7 +70,6 @@ function startListening() {
         recognition.onerror = (e) => console.error("Erro no mic:", e);
         
         recognition.onend = () => {
-            // Só reinicia automaticamente se estivermos conectados e não estiver tocando áudio
             if (isConnected && statusDiv.innerText !== "Professor falando...") {
                 try { recognition.start(); } catch(e){}
             }
@@ -77,50 +77,55 @@ function startListening() {
 
         try { recognition.start(); } catch(e){}
     } else {
-        alert("Navegador não suporta reconhecimento de voz.");
+        alert("Navegador nao suporta reconhecimento de voz.");
     }
 }
 
 let nextPlayTime = 0;
 
 function playAudio(base64Data) {
-    const binaryStr = window.atob(base64Data);
-    const len = binaryStr.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-    }
-    
-    audioContext.decodeAudioData(bytes.buffer, (audioBuffer) => {
-        const source = audioContext.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(audioContext.destination);
-        
-        const currentTime = audioContext.currentTime;
-        if (currentTime < nextPlayTime) {
-            source.start(nextPlayTime);
-            nextPlayTime += audioBuffer.duration;
-        } else {
-            source.start(currentTime);
-            nextPlayTime = currentTime + audioBuffer.duration;
+    try {
+        const binaryStr = window.atob(base64Data);
+        const len = binaryStr.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
         }
         
-        avatar.classList.add('speaking');
-        statusDiv.innerText = "Professor falando...";
-        
-        source.onended = () => {
-            if (audioContext.currentTime >= nextPlayTime) {
-                avatar.classList.remove('speaking');
-                statusDiv.innerText = "Sua vez de falar...";
-                if (isConnected && recognition) {
-                    try { recognition.start(); } catch(e){}
-                }
+        audioContext.decodeAudioData(bytes.buffer, (audioBuffer) => {
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioContext.destination);
+            
+            const currentTime = audioContext.currentTime;
+            if (currentTime < nextPlayTime) {
+                source.start(nextPlayTime);
+                nextPlayTime += audioBuffer.duration;
+            } else {
+                source.start(currentTime);
+                nextPlayTime = currentTime + audioBuffer.duration;
             }
-        };
-    }, (e) => {
-        console.error("Erro ao decodificar áudio", e);
+            
+            avatar.classList.add('speaking');
+            statusDiv.innerText = "Professor falando...";
+            
+            source.onended = () => {
+                if (audioContext.currentTime >= nextPlayTime) {
+                    avatar.classList.remove('speaking');
+                    statusDiv.innerText = "Sua vez de falar...";
+                    if (isConnected && recognition) {
+                        try { recognition.start(); } catch(e){}
+                    }
+                }
+            };
+        }, (e) => {
+            statusDiv.innerText = "Erro de decode do Audio!";
+            if (isConnected && recognition) recognition.start();
+        });
+    } catch(err) {
+        statusDiv.innerText = "Erro no buffer de Audio!";
         if (isConnected && recognition) recognition.start();
-    });
+    }
 }
 
 disconnectBtn.addEventListener('click', () => {
